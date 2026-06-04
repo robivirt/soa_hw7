@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import os
 from pathlib import Path
 
 
@@ -17,6 +18,8 @@ def main() -> None:
         "docker",
         "run",
         "--rm",
+        "--user",
+        f"{os.getuid()}:{os.getgid()}",
         "-v",
         f"{ROOT}:/local",
         "openapitools/openapi-generator-cli:v7.10.0",
