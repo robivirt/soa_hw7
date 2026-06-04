@@ -1,0 +1,49 @@
+{
+  "uid": "marketplace-infra",
+  "title": "Marketplace Infrastructure",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "tags": ["marketplace", "infrastructure"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "PostgreSQL active connections",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(pg_stat_database_numbackends{datname=\"marketplace\"})", "legendFormat": "connections"}],
+      "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green"}, {"color": "orange", "value": 50}, {"color": "red", "value": 90}]}}},
+      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "PostgreSQL transaction rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "rate(pg_stat_database_xact_commit{datname=\"marketplace\"}[1m])", "legendFormat": "commit/s"},
+        {"expr": "rate(pg_stat_database_xact_rollback{datname=\"marketplace\"}[1m])", "legendFormat": "rollback/s"}
+      ],
+      "gridPos": {"h": 7, "w": 8, "x": 8, "y": 0}
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "PostgreSQL cache hit ratio",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(pg_stat_database_blks_hit{datname=\"marketplace\"}) / clamp_min(sum(pg_stat_database_blks_hit{datname=\"marketplace\"}) + sum(pg_stat_database_blks_read{datname=\"marketplace\"}), 1)", "legendFormat": "cache hit"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1, "thresholds": {"mode": "absolute", "steps": [{"color": "red"}, {"color": "orange", "value": 0.90}, {"color": "green", "value": 0.98}]}}},
+      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 0}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "PostgreSQL database size",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "pg_database_size_bytes{datname=\"marketplace\"}", "legendFormat": "database size"}],
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 7}
+    }
+  ]
+}

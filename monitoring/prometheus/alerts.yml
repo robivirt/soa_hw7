@@ -1,0 +1,38 @@
+groups:
+  - name: marketplace-slo
+    rules:
+      - alert: MarketplaceHighErrorRate
+        expr: |
+          (
+            (sum(rate(http_request_errors_total{service="marketplace-api"}[5m])) or vector(0))
+            /
+            clamp_min(sum(rate(http_requests_total{service="marketplace-api"}[5m])), 0.001)
+          ) > 0.05
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Marketplace API error rate is above 5%
+          description: Error rate is above the failure threshold for the marketplace API.
+
+      - alert: MarketplaceHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(http_request_duration_seconds_bucket{service="marketplace-api"}[5m])) by (le)
+          ) > 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Marketplace API p95 latency is above 1s
+          description: End-to-end API latency is above the failure threshold.
+
+      - alert: MarketplaceTargetDown
+        expr: up{job=~"marketplace-api|notification"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Marketplace service target is down
+          description: Prometheus cannot scrape one of the application services.

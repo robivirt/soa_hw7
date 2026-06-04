@@ -1,0 +1,99 @@
+{
+  "uid": "marketplace-services",
+  "title": "Marketplace Services",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "tags": ["marketplace", "services"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Marketplace API",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "API throughput",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(rate(http_requests_total{service=\"marketplace-api\"}[1m])) by (method, endpoint)", "legendFormat": "{{method}} {{endpoint}}"}],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 1}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "API latency p50/p95/p99",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{service=\"marketplace-api\"}[5m])) by (le))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"marketplace-api\"}[5m])) by (le))", "legendFormat": "p95"},
+        {"expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"marketplace-api\"}[5m])) by (le))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 1}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "API error rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "(sum(rate(http_request_errors_total{service=\"marketplace-api\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{service=\"marketplace-api\"}[5m])), 0.001)", "legendFormat": "error rate"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "thresholds": {"mode": "absolute", "steps": [{"color": "green"}, {"color": "red", "value": 0.05}]}}},
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 9}
+    },
+    {
+      "id": 5,
+      "type": "heatmap",
+      "title": "API latency distribution",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(rate(http_request_duration_seconds_bucket{service=\"marketplace-api\"}[5m])) by (le)", "format": "heatmap", "legendFormat": "{{le}}"}],
+      "gridPos": {"h": 6, "w": 16, "x": 8, "y": 9}
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Notification",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 15}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Notification throughput",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(rate(http_requests_total{service=\"notification\"}[1m])) by (method, endpoint)", "legendFormat": "{{method}} {{endpoint}}"}],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Notification latency p50/p95/p99",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{service=\"notification\"}[5m])) by (le))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"notification\"}[5m])) by (le))", "legendFormat": "p95"},
+        {"expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"notification\"}[5m])) by (le))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Notification error rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "(sum(rate(http_request_errors_total{service=\"notification\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{service=\"notification\"}[5m])), 0.001)", "legendFormat": "error rate"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "thresholds": {"mode": "absolute", "steps": [{"color": "green"}, {"color": "red", "value": 0.05}]}}},
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 24}
+    },
+    {
+      "id": 10,
+      "type": "heatmap",
+      "title": "Notification latency distribution",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(rate(http_request_duration_seconds_bucket{service=\"notification\"}[5m])) by (le)", "format": "heatmap", "legendFormat": "{{le}}"}],
+      "gridPos": {"h": 6, "w": 16, "x": 8, "y": 24}
+    }
+  ]
+}

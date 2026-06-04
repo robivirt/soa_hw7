@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import uuid
+import sys
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, Iterable, Optional
 
+import httpx
 from fastapi import Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -17,6 +20,11 @@ from app.errors import ApiError
 from app.generated_security import Principal, current_principal
 from app.models import Order, OrderItem, Product, PromoCode, User, UserOperation
 from app.settings import settings
+
+
+GENERATED_SRC = Path(__file__).resolve().parent / "generated" / "openapi" / "src"
+if GENERATED_SRC.exists() and str(GENERATED_SRC) not in sys.path:
+    sys.path.insert(0, str(GENERATED_SRC))
 
 from generated_server.apis.auth_api_base import BaseAuthApi
 from generated_server.apis.orders_api_base import BaseOrdersApi
@@ -193,6 +201,13 @@ def reserve_products(db: Session, items: Iterable) -> list[tuple[Product, int]]:
     return reserved
 
 
+def release_products(db: Session, items: Iterable) -> None:
+    for product_id, quantity in aggregate_items(items).items():
+        product = db.scalar(select(Product).where(Product.id == product_id).with_for_update())
+        if product is not None:
+            product.stock += quantity
+
+
 def validate_promo(db: Session, code: str) -> PromoCode:
     promo = db.scalar(select(PromoCode).where(PromoCode.code == code).with_for_update())
     now = utcnow()
@@ -218,6 +233,31 @@ def apply_promo_to_total(total: Decimal, promo: PromoCode) -> tuple[Decimal, Dec
         raise ApiError(422, "PROMO_CODE_MIN_AMOUNT", "Order amount is below promo code minimum")
     discount = calculate_discount(total, promo)
     return money(total - discount), discount
+
+
+def notification_remote_url() -> str:
+    return settings.notification_service_url.rstrip("/")
+
+
+def notify_order_event(event_type: str, order: Order) -> None:
+    remote_url = notification_remote_url()
+    if not remote_url:
+        return
+    try:
+        response = httpx.post(
+            f"{remote_url}/notifications/order-events",
+            json={
+                "event_type": event_type,
+                "order_id": str(order.id),
+                "user_id": str(order.user_id),
+                "status": order.status,
+            },
+            timeout=5,
+        )
+    except httpx.RequestError as exc:
+        raise ApiError(503, "NOTIFICATION_UNAVAILABLE", "Notification service is unavailable") from exc
+    if response.status_code >= 400:
+        raise ApiError(503, "NOTIFICATION_FAILED", "Notification service failed")
 
 
 class AuthApiImpl(BaseAuthApi):
@@ -406,6 +446,7 @@ class OrdersApiImpl(BaseOrdersApi):
                 db.add(UserOperation(user_id=principal.user_id, operation_type="CREATE_ORDER"))
                 db.commit()
                 db.refresh(order)
+                notify_order_event("ORDER_CREATED", order)
                 return created(order_response(order))
             except Exception:
                 db.rollback()
@@ -441,10 +482,7 @@ class OrdersApiImpl(BaseOrdersApi):
                     raise ApiError(409, "INVALID_STATE_TRANSITION", "Only CREATED orders can be updated")
                 check_rate_limit(db, order.user_id, "UPDATE_ORDER")
 
-                for item in order.items:
-                    product = db.scalar(select(Product).where(Product.id == item.product_id).with_for_update())
-                    if product is not None:
-                        product.stock += item.quantity
+                release_products(db, order.items)
 
                 reserved = reserve_products(db, order_update.items)
                 subtotal = money(sum(product.price * quantity for product, quantity in reserved))
@@ -470,6 +508,7 @@ class OrdersApiImpl(BaseOrdersApi):
                 db.add(UserOperation(user_id=order.user_id, operation_type="UPDATE_ORDER"))
                 db.commit()
                 db.refresh(order)
+                notify_order_event("ORDER_UPDATED", order)
                 return order_response(order)
             except Exception:
                 db.rollback()
@@ -491,10 +530,7 @@ class OrdersApiImpl(BaseOrdersApi):
                 if order.status not in {"CREATED", "PAYMENT_PENDING"}:
                     raise ApiError(409, "INVALID_STATE_TRANSITION", "Order cannot be canceled from current state")
 
-                for item in order.items:
-                    product = db.scalar(select(Product).where(Product.id == item.product_id).with_for_update())
-                    if product is not None:
-                        product.stock += item.quantity
+                release_products(db, order.items)
                 if order.promo_code is not None:
                     promo = db.scalar(select(PromoCode).where(PromoCode.id == order.promo_code.id).with_for_update())
                     if promo is not None:
@@ -502,6 +538,7 @@ class OrdersApiImpl(BaseOrdersApi):
                 order.status = "CANCELED"
                 db.commit()
                 db.refresh(order)
+                notify_order_event("ORDER_CANCELED", order)
                 return order_response(order)
             except Exception:
                 db.rollback()

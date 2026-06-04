@@ -11,6 +11,7 @@ import yaml
 from fastapi import FastAPI, Request
 
 from app.errors import add_error_handlers
+from app.metrics import install_metrics
 
 
 GENERATED_SRC = Path(__file__).resolve().parent / "generated" / "openapi" / "src"
@@ -25,6 +26,7 @@ from generated_server.apis.promo_codes_api import router as PromoCodesApiRouter
 
 app = FastAPI(title="Marketplace API", version="1.0.0")
 add_error_handlers(app)
+install_metrics(app, "marketplace-api")
 
 
 def load_openapi() -> dict[str, Any]:
@@ -33,6 +35,11 @@ def load_openapi() -> dict[str, Any]:
 
 
 app.openapi = load_openapi
+
+
+@app.get("/health", include_in_schema=False)
+def health() -> dict[str, str]:
+    return {"status": "ok", "service": "marketplace-api"}
 
 
 def utcnow() -> datetime:

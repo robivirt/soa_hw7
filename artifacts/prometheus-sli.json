@@ -1,0 +1,20 @@
+{
+  "api_error_rate": {
+    "value": 0.0,
+    "query": "(sum(rate(http_request_errors_total{service=\"marketplace-api\"}[1m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{service=\"marketplace-api\"}[1m])), 0.001)",
+    "threshold": "< 0.01",
+    "ok": true
+  },
+  "api_latency_p95_seconds": {
+    "value": 0.0459567901234568,
+    "query": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"marketplace-api\"}[1m])) by (le))",
+    "threshold": "< 0.5",
+    "ok": true
+  },
+  "api_availability": {
+    "value": 1.0,
+    "query": "1 - ((sum(rate(http_request_errors_total{service=\"marketplace-api\"}[1m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{service=\"marketplace-api\"}[1m])), 0.001))",
+    "threshold": "> 0.995",
+    "ok": true
+  }
+}

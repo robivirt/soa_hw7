@@ -12,6 +12,7 @@ class Settings:
     access_token_minutes: int = int(os.getenv("ACCESS_TOKEN_MINUTES", "20"))
     refresh_token_days: int = int(os.getenv("REFRESH_TOKEN_DAYS", "14"))
     order_rate_limit_minutes: int = int(os.getenv("ORDER_RATE_LIMIT_MINUTES", "1"))
+    notification_service_url: str = os.getenv("NOTIFICATION_SERVICE_URL", "")
 
 
 settings = Settings()
